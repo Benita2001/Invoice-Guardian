@@ -29,10 +29,21 @@ create table if not exists invoices (
     reviewed_at    timestamptz
 );
 
+-- Historical audit columns
+alter table invoices
+    add column if not exists is_historical  boolean not null default false,
+    add column if not exists already_paid   boolean not null default false,
+    add column if not exists gmail_message_id text;
+
 -- Index for the dashboard query (flagged invoices, newest first)
 create index if not exists idx_invoices_flagged
     on invoices (risk_score, created_at desc)
     where risk_score > 0;
+
+-- Index for historical audit lookups
+create index if not exists idx_invoices_historical
+    on invoices (gmail_message_id, is_historical)
+    where is_historical = true;
 
 -- Index for looking up by invoice number
 create index if not exists idx_invoices_invoice_number

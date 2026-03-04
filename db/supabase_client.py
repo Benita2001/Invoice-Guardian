@@ -45,6 +45,9 @@ def insert_invoice(invoice_record: dict) -> dict:
         "risk_tier": invoice_record.get("risk_tier"),
         "risk_flags": invoice_record.get("flags", []),
         "raw_ocr": invoice_record.get("raw_response"),
+        "is_historical": invoice_record.get("is_historical", False),
+        "already_paid": invoice_record.get("already_paid", False),
+        "gmail_message_id": invoice_record.get("gmail_message_id"),
     }
 
     result = get_client().table("invoices").insert(row).execute()
@@ -75,6 +78,20 @@ def update_decision(invoice_id: str, decision: str, reviewer: str) -> dict:
     updated = result.data[0]
     log.info("Invoice %s marked as %s by %s", invoice_id, decision, reviewer)
     return updated
+
+
+def historical_message_exists(gmail_message_id: str) -> bool:
+    """Return True if a historical invoice record already exists for this Gmail message."""
+    result = (
+        get_client()
+        .table("invoices")
+        .select("id")
+        .eq("gmail_message_id", gmail_message_id)
+        .eq("is_historical", True)
+        .limit(1)
+        .execute()
+    )
+    return len(result.data) > 0
 
 
 def get_flagged_invoices(limit: int = 50, min_score: int = 1) -> list[dict]:

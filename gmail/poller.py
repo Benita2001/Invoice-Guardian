@@ -2,6 +2,7 @@
 
 import base64
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -108,6 +109,84 @@ def _extract_header(message: dict, name: str) -> str | None:
         if h["name"].lower() == name.lower():
             return h["value"]
     return None
+
+
+def scan_historical_invoices(months: int = 12) -> dict:
+    """Fetch all invoice emails from the past N months, run the full pipeline,
+    and persist each to Supabase with is_historical=True, already_paid=True.
+
+    Unlike poll_inbox(), this does NOT filter for unread messages — it scans
+    everything. Already-processed messages (identified by gmail_message_id) are
+    skipped so re-running the audit is idempotent.
+
+    Returns:
+        {"scanned": int, "saved": int, "skipped": int, "errors": int}
+    """
+    from ocr.veryfi_client import extract_invoice
+    from scoring.engine import score_invoice
+    from db.supabase_client import insert_invoice, historical_message_exists
+
+    if _service is None:
+        authenticate()
+
+    service = _get_service()
+
+    after = (datetime.now() - timedelta(days=months * 30)).strftime("%Y/%m/%d")
+    query = f"{config.GMAIL_QUERY} after:{after}"
+    log.info("Historical audit: query='%s'", query)
+
+    # Paginate through all matching messages
+    all_messages: list[dict] = []
+    page_token = None
+    while True:
+        kwargs: dict = {"userId": "me", "q": query, "maxResults": 100}
+        if page_token:
+            kwargs["pageToken"] = page_token
+        resp = service.users().messages().list(**kwargs).execute()
+        all_messages.extend(resp.get("messages", []))
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            break
+
+    log.info("Historical audit: %d messages to process", len(all_messages))
+    scanned = saved = skipped = errors = 0
+
+    for msg in all_messages:
+        msg_id = msg["id"]
+
+        if historical_message_exists(msg_id):
+            skipped += 1
+            continue
+
+        try:
+            full_msg = service.users().messages().get(
+                userId="me", id=msg_id, format="full",
+            ).execute()
+            pdfs = _download_pdf_attachments(service, full_msg)
+
+            for pdf_bytes in pdfs:
+                scanned += 1
+                try:
+                    invoice_data = extract_invoice(pdf_bytes, f"historical_{msg_id}.pdf")
+                    risk_result = score_invoice(invoice_data)
+                    insert_invoice({
+                        **invoice_data,
+                        **risk_result,
+                        "is_historical": True,
+                        "already_paid": True,
+                        "gmail_message_id": msg_id,
+                    })
+                    saved += 1
+                except Exception:
+                    log.exception("Error processing PDF from message %s", msg_id)
+                    errors += 1
+        except Exception:
+            log.exception("Error fetching message %s", msg_id)
+            errors += 1
+
+    stats = {"scanned": scanned, "saved": saved, "skipped": skipped, "errors": errors}
+    log.info("Historical audit complete: %s", stats)
+    return stats
 
 
 def _download_pdf_attachments(service, message: dict) -> list[bytes]:

@@ -1,13 +1,16 @@
 """Invoice Guardian — entry point.
 
-Runs two concurrent loops:
+Runs three concurrent loops:
   1. Gmail poller  → OCR → scoring → Slack alert → DB insert  (polling loop)
   2. Slack Bolt app listening for Approve/Block button clicks   (HTTP server)
+  3. Audit API     → lightweight HTTP server on :8000 for historical scans
 """
 
+import json
 import threading
 import time
 import logging
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import config
 from gmail.poller import authenticate, poll_inbox
@@ -60,8 +63,54 @@ def start_slack_server() -> None:
     app.start(port=3000)
 
 
+def start_audit_api() -> None:
+    """Minimal HTTP server on :8000 that triggers historical audits.
+
+    POST /audit/run   — starts scan_historical_invoices() in a background thread.
+    GET  /audit/health — returns {"status": "ok"}.
+    """
+    from gmail.poller import scan_historical_invoices
+
+    class _Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path == "/audit/run":
+                def _run():
+                    try:
+                        scan_historical_invoices()
+                    except Exception:
+                        log.exception("Historical audit failed")
+
+                threading.Thread(target=_run, daemon=True).start()
+                self._respond(202, {"status": "started"})
+            else:
+                self._respond(404, {"error": "not found"})
+
+        def do_GET(self):
+            if self.path == "/audit/health":
+                self._respond(200, {"status": "ok"})
+            else:
+                self._respond(404, {"error": "not found"})
+
+        def _respond(self, code: int, data: dict) -> None:
+            body = json.dumps(data).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, fmt, *args):  # suppress default access log
+            log.debug("Audit API: " + fmt, *args)
+
+    server = HTTPServer(("127.0.0.1", 8000), _Handler)
+    log.info("Audit API listening on http://127.0.0.1:8000")
+    server.serve_forever()
+
+
 if __name__ == "__main__":
     log.info("Starting Invoice Guardian")
     poller_thread = threading.Thread(target=polling_loop, daemon=True)
     poller_thread.start()
+    audit_thread = threading.Thread(target=start_audit_api, daemon=True)
+    audit_thread.start()
     start_slack_server()
