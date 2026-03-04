@@ -18,16 +18,16 @@ export default function InvoiceList({ initialInvoices }: { initialInvoices: Invo
 
   if (invoices.length === 0) {
     return (
-      <div className="text-center py-24 text-gray-400">
-        <div className="text-5xl mb-4">✓</div>
-        <p className="text-lg font-medium text-gray-500">No invoices found</p>
-        <p className="text-sm mt-1">Invoices will appear here as they are processed</p>
+      <div className="text-center py-24 glass rounded-2xl">
+        <div className="text-5xl mb-4 opacity-20">✓</div>
+        <p className="text-zinc-500 font-medium">No invoices found</p>
+        <p className="text-zinc-700 text-sm mt-1">Invoices will appear here as they are processed</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {invoices.map(invoice => (
         <InvoiceCard key={invoice.id} invoice={invoice} onDecision={handleDecision} />
       ))}

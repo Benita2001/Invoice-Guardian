@@ -4,6 +4,23 @@ import InvoiceList from '@/components/InvoiceList'
 
 export const dynamic = 'force-dynamic'
 
+const STAT_STYLES: Record<string, string> = {
+  slate:  'border-white/[0.07] text-white',
+  red:    'border-red-500/30 text-red-400',
+  orange: 'border-orange-500/30 text-orange-400',
+  yellow: 'border-yellow-500/30 text-yellow-400',
+  green:  'border-emerald-500/30 text-emerald-400',
+}
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className={`glass rounded-xl p-4 border ${STAT_STYLES[color]}`}>
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs font-semibold mt-0.5 opacity-40 uppercase tracking-widest">{label}</div>
+    </div>
+  )
+}
+
 export default async function DashboardPage() {
   const { data: invoices, error } = await supabase
     .from('invoices')
@@ -22,29 +39,34 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Fixed background grid */}
+      <div className="fixed inset-0 grid-bg pointer-events-none" />
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-5">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      {/* Sticky header */}
+      <header className="sticky top-0 z-40 border-b border-white/[0.05] backdrop-blur-xl bg-[#0a0a0a]/80 px-6">
+        <div className="max-w-5xl mx-auto h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-              <span className="text-xl">🛡️</span>
-              <span className="font-bold text-gray-900">Invoice Guardian</span>
+            <Link href="/" className="flex items-center gap-2 group">
+              <span>🛡️</span>
+              <span className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors">
+                Invoice Guardian
+              </span>
             </Link>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-500 text-sm font-medium">Dashboard</span>
+            <span className="text-white/15">/</span>
+            <span className="text-zinc-500 text-sm font-medium">Dashboard</span>
           </div>
+
           {counts.pending > 0 && (
-            <span className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               {counts.pending} awaiting review
-            </span>
+            </div>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-5xl mx-auto px-8 py-8">
-
+      <div className="relative z-10 max-w-5xl mx-auto px-6 py-8">
         {/* Stats */}
         <div className="grid grid-cols-5 gap-3 mb-8">
           <StatCard label="Total"    value={counts.total}    color="slate"  />
@@ -55,33 +77,20 @@ export default async function DashboardPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-sm text-red-700">
+          <div className="glass border border-red-500/30 rounded-xl p-4 mb-6 text-sm text-red-400">
             Failed to load invoices: {error.message}
           </div>
         )}
 
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-          Invoices — newest first
-        </h2>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-500 to-violet-600" />
+          <span className="text-xs font-bold text-zinc-600 uppercase tracking-widest">
+            Invoices — newest first
+          </span>
+        </div>
 
         <InvoiceList initialInvoices={all} />
       </div>
-    </div>
-  )
-}
-
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const styles: Record<string, string> = {
-    slate:  'bg-white border-gray-200 text-gray-800',
-    red:    'bg-red-50 border-red-200 text-red-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
-    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-    green:  'bg-green-50 border-green-200 text-green-700',
-  }
-  return (
-    <div className={`rounded-xl border p-4 shadow-sm ${styles[color]}`}>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs font-semibold mt-0.5 opacity-60 uppercase tracking-wide">{label}</div>
     </div>
   )
 }

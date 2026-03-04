@@ -18,25 +18,45 @@ export interface Invoice {
   reviewed_at: string | null
 }
 
-const TIER: Record<string, { border: string; badge: string; score: string; dot: string }> = {
-  LOW:      { border: 'border-l-green-500',  badge: 'bg-green-100 text-green-800',   score: 'text-green-600',  dot: 'bg-green-500'  },
-  MEDIUM:   { border: 'border-l-yellow-400', badge: 'bg-yellow-100 text-yellow-800', score: 'text-yellow-600', dot: 'bg-yellow-400' },
-  HIGH:     { border: 'border-l-orange-500', badge: 'bg-orange-100 text-orange-800', score: 'text-orange-600', dot: 'bg-orange-500' },
-  CRITICAL: { border: 'border-l-red-500',    badge: 'bg-red-100 text-red-800',       score: 'text-red-600',    dot: 'bg-red-500'    },
+const TIER: Record<string, { border: string; badge: string; score: string; glow: string }> = {
+  LOW: {
+    border: 'border-l-emerald-500',
+    badge:  'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    score:  'text-emerald-400',
+    glow:   'drop-shadow-[0_0_14px_rgba(34,197,94,0.55)]',
+  },
+  MEDIUM: {
+    border: 'border-l-yellow-400',
+    badge:  'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+    score:  'text-yellow-400',
+    glow:   'drop-shadow-[0_0_14px_rgba(234,179,8,0.55)]',
+  },
+  HIGH: {
+    border: 'border-l-orange-500',
+    badge:  'bg-orange-500/10 text-orange-400 border-orange-500/30',
+    score:  'text-orange-400',
+    glow:   'drop-shadow-[0_0_14px_rgba(249,115,22,0.55)]',
+  },
+  CRITICAL: {
+    border: 'border-l-red-500',
+    badge:  'bg-red-500/10 text-red-400 border-red-500/30',
+    score:  'text-red-400',
+    glow:   'drop-shadow-[0_0_14px_rgba(239,68,68,0.55)]',
+  },
 }
 
-function formatDate(str: string | null): string {
+function fmt(total: number | null, currency: string | null) {
+  if (total == null) return 'N/A'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency ?? 'USD' }).format(total)
+}
+
+function fmtDate(str: string | null) {
   if (!str) return 'N/A'
   try {
     return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   } catch {
     return str
   }
-}
-
-function formatAmount(total: number | null, currency: string | null): string {
-  if (total == null) return 'N/A'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency ?? 'USD' }).format(total)
 }
 
 export default function InvoiceCard({
@@ -70,64 +90,62 @@ export default function InvoiceCard({
   }
 
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 border-l-4 ${tier.border} shadow-sm hover:shadow-md transition-shadow`}>
-      <div className="p-6">
-
-        {/* Top row */}
-        <div className="flex items-start justify-between gap-6">
+    <div
+      className={`glass rounded-xl border-l-4 ${tier.border} transition-all duration-300 hover:bg-white/[0.05] hover:-translate-y-0.5 hover:shadow-[0_8px_40px_rgba(0,0,0,0.5)]`}
+    >
+      <div className="p-5">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base font-semibold text-gray-900">
+              <h3 className="text-sm font-bold text-white">
                 {invoice.vendor_name ?? 'Unknown Vendor'}
               </h3>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tier.badge}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${tier.badge}`}>
                 {invoice.risk_tier}
               </span>
               {decision && (
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
                   decision === 'Approved'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-gray-100 text-gray-500 border-gray-200'
+                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30'
                 }`}>
                   {decision === 'Approved' ? '✓ Approved' : '✗ Blocked'}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-1.5 text-sm text-gray-500 flex-wrap">
-              <span className="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">
-                #{invoice.invoice_number ?? 'N/A'}
-              </span>
-              <span className="font-medium text-gray-700">
-                {formatAmount(invoice.total, invoice.currency_code)}
-              </span>
-              <span className="text-gray-300">·</span>
-              <span>{formatDate(invoice.invoice_date ?? invoice.created_at)}</span>
+            <div className="flex items-center gap-2 mt-1.5 text-xs text-zinc-600 flex-wrap font-mono">
+              <span>#{invoice.invoice_number ?? 'N/A'}</span>
+              <span className="text-zinc-700">·</span>
+              <span className="text-zinc-300">{fmt(invoice.total, invoice.currency_code)}</span>
+              <span className="text-zinc-700">·</span>
+              <span>{fmtDate(invoice.invoice_date ?? invoice.created_at)}</span>
             </div>
           </div>
 
           {/* Trust score */}
-          <div className="text-right shrink-0">
-            <div className={`text-3xl font-bold leading-none ${tier.score}`}>
+          <div className={`text-right shrink-0 ${tier.glow}`}>
+            <div className={`text-3xl font-extrabold leading-none ${tier.score}`}>
               {invoice.risk_score}
             </div>
-            <div className="text-xs text-gray-400 mt-0.5">/ 100 trust</div>
+            <div className="text-xs text-zinc-700 mt-0.5">/ 100 trust</div>
           </div>
         </div>
 
         {/* Flags */}
         {flags.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
-              {flags.length} Flag{flags.length !== 1 ? 's' : ''}
-            </p>
+          <div className="mt-4 pt-3 border-t border-white/[0.05]">
+            <div className="text-xs font-bold text-zinc-700 uppercase tracking-widest mb-2.5">
+              {flags.length} flag{flags.length !== 1 ? 's' : ''}
+            </div>
             <ul className="space-y-1.5">
               {flags.map((flag, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="shrink-0 font-mono text-xs bg-red-50 text-red-500 border border-red-100 px-1.5 py-0.5 rounded mt-0.5">
+                <li key={i} className="flex items-start gap-2 text-xs">
+                  <span className="shrink-0 font-mono px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400">
                     -{flag.points}
                   </span>
-                  <span className="text-gray-600">
-                    <span className="font-medium text-gray-800">{flag.rule}</span>
+                  <span className="text-zinc-400">
+                    <span className="text-zinc-200 font-medium">{flag.rule}</span>
                     {' '}— {flag.detail}
                   </span>
                 </li>
@@ -137,24 +155,22 @@ export default function InvoiceCard({
         )}
 
         {/* Actions */}
-        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
+        <div className="mt-4 pt-3 border-t border-white/[0.05] flex items-center gap-3">
           {decision ? (
-            <p className="text-xs text-gray-400">
-              Reviewed · {decision} by Dashboard
-            </p>
+            <p className="text-xs text-zinc-700 font-mono">{decision} · by Dashboard</p>
           ) : (
             <>
               <button
                 onClick={() => handleAction('Approved')}
                 disabled={!!loading}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-1.5 bg-emerald-600/80 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-all duration-200 hover:shadow-[0_0_16px_rgba(34,197,94,0.35)]"
               >
                 {loading === 'Approved' ? 'Saving…' : '✓ Approve'}
               </button>
               <button
                 onClick={() => handleAction('Blocked')}
                 disabled={!!loading}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-all duration-200 hover:shadow-[0_0_16px_rgba(239,68,68,0.35)]"
               >
                 {loading === 'Blocked' ? 'Saving…' : '✗ Block'}
               </button>
