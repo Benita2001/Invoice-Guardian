@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+token.json
+credentials.json
+venv/
+.venv/
+
+# Next.js dashboard
+dashboard/.env.local
+dashboard/node_modules/
+dashboard/.next/

@@ -1,0 +1,7 @@
+python-dotenv==1.1.0
+google-api-python-client==2.166.0
+google-auth-oauthlib==1.2.1
+veryfi==3.4.1
+slack-bolt==1.22.0
+slack-sdk==3.34.0
+supabase==2.13.0
